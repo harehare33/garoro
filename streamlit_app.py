@@ -64,7 +64,7 @@ if 'output_text' not in st.session_state:
 
 st.set_page_config(page_title="일본어 가로쓰기 변환기", layout="wide")
 st.title("📝 일본어 가로쓰기 변환기")
-st.caption("세로쓰기 대본을 복사해서 붙여넣으면 가로쓰기로 변환하고 문장 단위로 줄을 나눠줍니다. ([하레](https://x.com/hareharehare_33))")
+st.caption("변환 버튼 두 번 누르세요 ([@하레](https://x.com/hareharehare_33))")
 
 col1, col2 = st.columns(2) # 좌우 영역 분할
 
