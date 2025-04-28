@@ -12,7 +12,7 @@ def split_by_punctuation(text):
         part = parts[i]
         if not part: i += 1; continue
         current_sentence += part
-        is_terminator = part in ['。', '」|』', '？', '！'] # 오타 수정: 』 누락 수정
+        is_terminator = part in ['。', '」', '』', '？', '！'] # 이전 오타 수정됨
         is_question_or_exclamation = part in ['？', '！']
         next_part_is_closing_quote = False
         if i + 1 < len(parts):
@@ -29,12 +29,10 @@ def split_by_punctuation(text):
     if cleaned_sentence: result.append(cleaned_sentence)
     return result
 
-# --- 텍스트 변환 핵심 로직 함수 (캐싱 추가됨) ---
-# ⭐ @st.cache_data 추가: 입력값이 같으면 계산 결과를 재사용해서 속도 향상
+# --- 텍스트 변환 핵심 로직 함수 (캐싱 유지) ---
 @st.cache_data
 def convert_vertical_to_horizontal_logic(input_text):
-    # 입력값이 변경될 때만 이 함수 내부 코드가 실제로 실행됩니다.
-    print(f"캐시되지 않음: '{input_text[:20]}...' 변환 로직 실행 중") # (디버깅용 출력, 실제 앱에서는 안 보임)
+    print(f"캐시되지 않음: '{input_text[:20]}...' 변환 로직 실행 중")
     lines = input_text.strip().split('\n')
     paragraphs = []
     paragraph = ''
@@ -62,6 +60,9 @@ if 'input_text' not in st.session_state:
     st.session_state.input_text = ""
 if 'output_text' not in st.session_state:
     st.session_state.output_text = ""
+# input_widget 키가 없을 경우를 대비한 초기화 (안전장치)
+if 'input_widget' not in st.session_state:
+    st.session_state.input_widget = ""
 
 st.set_page_config(page_title="일본어 세로쓰기 → 가로쓰기 변환기", layout="wide")
 st.title("📝 일본어 세로쓰기 → 가로쓰기 변환기")
@@ -71,31 +72,43 @@ col1, col2 = st.columns(2) # 좌우 영역 분할
 
 with col1: # 왼쪽 칸: 입력 영역
     st.subheader("세로쓰기 텍스트 입력:")
-    def update_input():
-        st.session_state.input_text = st.session_state.input_widget
-    st.text_area("여기에 붙여넣으세요 👇", value=st.session_state.input_text, height=400, key="input_widget", on_change=update_input, placeholder="복사한 세로쓰기 텍스트를 붙여넣어주세요...")
+    # ⭐ on_change 콜백은 제거하거나 유지해도 되지만, 버튼 로직에서 직접 위젯 키를 사용하므로 필수는 아님.
+    #    여기서는 일단 제거하여 단순화 시도.
+    # def update_input():
+    #     st.session_state.input_text = st.session_state.input_widget
+    st.text_area("여기에 붙여넣으세요 👇", value=st.session_state.input_text, height=400, key="input_widget", placeholder="복사한 세로쓰기 텍스트를 붙여넣어주세요...")
+    # ⭐ input_text 상태는 지우기 버튼 등 다른 곳에서 사용될 수 있으므로 value 연결은 유지.
 
 with col2: # 오른쪽 칸: 출력 영역
     st.subheader("변환 결과:")
-    # ⭐ disabled=True 제거됨: 일반 텍스트 영역처럼 보임
     st.text_area("결과 👇 (직접 선택해서 복사하세요)", value=st.session_state.output_text, height=400, key="output_widget", help="변환된 텍스트입니다. 마우스로 선택 후 Ctrl+C (Cmd+C)로 복사하세요.")
+    # disabled=True 제거됨
 
-# --- 페이지 하단 중앙 버튼 영역 (변경 없음) ---
+# --- 페이지 하단 중앙 버튼 영역 (수정됨) ---
 st.markdown("---")
 _, center_col, _ = st.columns([1, 1.5, 1])
 with center_col:
     if st.button("✨ 가로로 변환하기", use_container_width=True):
-        if st.session_state.input_text:
-            # 캐싱된 함수 호출
-            st.session_state.output_text = convert_vertical_to_horizontal_logic(st.session_state.input_text)
+        # ⭐ 버튼 클릭 시점의 input_widget 값을 직접 사용!
+        current_input_value = st.session_state.get('input_widget', '') # 위젯 키가 없을 경우 빈 문자열 반환
+        if current_input_value:
+            # 변환 로직에 현재 위젯 값 전달
+            st.session_state.output_text = convert_vertical_to_horizontal_logic(current_input_value)
+            # 입력 상태(input_text)도 현재 위젯 값으로 동기화 (선택사항)
+            st.session_state.input_text = current_input_value
         else:
             st.warning("입력창에 텍스트를 먼저 넣어주세요!")
             st.session_state.output_text = ""
+            st.session_state.input_text = "" # 입력 상태도 비움
+
     st.markdown("<br>", unsafe_allow_html=True)
+
     if st.button("🔄 입력/출력 모두 지우기", use_container_width=True):
+        # ⭐ 지우기 버튼: input_widget의 상태와 input_text 상태 모두 초기화
         st.session_state.input_text = ""
         st.session_state.output_text = ""
-        # 캐시 지우기 (선택사항: 지우기 버튼 누르면 다음 변환은 무조건 새로 하도록)
+        st.session_state.input_widget = "" # 입력 위젯 자체의 상태도 초기화
+        # 캐시 지우기 (선택사항)
         # convert_vertical_to_horizontal_logic.clear()
         st.rerun()
 
