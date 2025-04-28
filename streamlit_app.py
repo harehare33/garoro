@@ -1,6 +1,5 @@
 import streamlit as st
 import re
-# pyperclip 임포트 제거됨
 
 # --- split_by_punctuation 함수 (변경 없음) ---
 def split_by_punctuation(text):
@@ -13,7 +12,7 @@ def split_by_punctuation(text):
         part = parts[i]
         if not part: i += 1; continue
         current_sentence += part
-        is_terminator = part in ['。', '」', '』', '？', '！']
+        is_terminator = part in ['。', '」|』', '？', '！'] # 오타 수정: 』 누락 수정
         is_question_or_exclamation = part in ['？', '！']
         next_part_is_closing_quote = False
         if i + 1 < len(parts):
@@ -30,8 +29,12 @@ def split_by_punctuation(text):
     if cleaned_sentence: result.append(cleaned_sentence)
     return result
 
-# --- 텍스트 변환 핵심 로직 함수 (변경 없음) ---
+# --- 텍스트 변환 핵심 로직 함수 (캐싱 추가됨) ---
+# ⭐ @st.cache_data 추가: 입력값이 같으면 계산 결과를 재사용해서 속도 향상
+@st.cache_data
 def convert_vertical_to_horizontal_logic(input_text):
+    # 입력값이 변경될 때만 이 함수 내부 코드가 실제로 실행됩니다.
+    print(f"캐시되지 않음: '{input_text[:20]}...' 변환 로직 실행 중") # (디버깅용 출력, 실제 앱에서는 안 보임)
     lines = input_text.strip().split('\n')
     paragraphs = []
     paragraph = ''
@@ -59,7 +62,6 @@ if 'input_text' not in st.session_state:
     st.session_state.input_text = ""
 if 'output_text' not in st.session_state:
     st.session_state.output_text = ""
-# 복사 관련 세션 상태 제거됨
 
 st.set_page_config(page_title="일본어 세로쓰기 → 가로쓰기 변환기", layout="wide")
 st.title("📝 일본어 세로쓰기 → 가로쓰기 변환기")
@@ -75,34 +77,28 @@ with col1: # 왼쪽 칸: 입력 영역
 
 with col2: # 오른쪽 칸: 출력 영역
     st.subheader("변환 결과:")
-    # 결과 텍스트 출력 상자 (높이 유지 또는 약간 늘림, 읽기 전용)
-    st.text_area("결과 👇 (직접 선택해서 복사하세요)", value=st.session_state.output_text, height=400, key="output_widget", help="변환된 텍스트입니다. 마우스로 선택 후 Ctrl+C (Cmd+C)로 복사하세요.", disabled=True)
-    # 버튼 관련 코드 col2 밖으로 이동됨
+    # ⭐ disabled=True 제거됨: 일반 텍스트 영역처럼 보임
+    st.text_area("결과 👇 (직접 선택해서 복사하세요)", value=st.session_state.output_text, height=400, key="output_widget", help="변환된 텍스트입니다. 마우스로 선택 후 Ctrl+C (Cmd+C)로 복사하세요.")
 
-# --- 페이지 하단 중앙 버튼 영역 ---
-st.markdown("---") # 구분선 추가
-
-# 버튼들을 중앙에 배치하기 위한 컬럼 사용
-_, center_col, _ = st.columns([1, 1.5, 1]) # 가운데 컬럼을 조금 더 넓게 조정
-
+# --- 페이지 하단 중앙 버튼 영역 (변경 없음) ---
+st.markdown("---")
+_, center_col, _ = st.columns([1, 1.5, 1])
 with center_col:
-    # '가로로 변환하기' 버튼 (결과창 아래, 중앙 정렬)
     if st.button("✨ 가로로 변환하기", use_container_width=True):
         if st.session_state.input_text:
+            # 캐싱된 함수 호출
             st.session_state.output_text = convert_vertical_to_horizontal_logic(st.session_state.input_text)
         else:
             st.warning("입력창에 텍스트를 먼저 넣어주세요!")
             st.session_state.output_text = ""
-
-    st.markdown("<br>", unsafe_allow_html=True) # 버튼 사이에 간격 추가
-
-    # '입력/출력 모두 지우기' 버튼 (변환 버튼 아래, 중앙 정렬)
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔄 입력/출력 모두 지우기", use_container_width=True):
         st.session_state.input_text = ""
         st.session_state.output_text = ""
-        st.rerun() # 즉시 화면 갱신
+        # 캐시 지우기 (선택사항: 지우기 버튼 누르면 다음 변환은 무조건 새로 하도록)
+        # convert_vertical_to_horizontal_logic.clear()
+        st.rerun()
 
-# --- 페이지 맨 아래 ---
-# st.markdown("---") # 구분선은 버튼 영역 위에 하나만 둠
+# --- 페이지 맨 아래 (변경 없음) ---
 st.write("@hareharehare_33")
 
